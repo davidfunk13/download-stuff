@@ -1,4 +1,4 @@
-# Weenus Boilerplate
+# Wenis Boilerplate
 **Universal Media Downloader (White Box Implementation)**
 
 This repository contains the "Hello World" boilerplate for Project Weenus, featuring a Flutter Frontend and a "Silent Sidecar" Go Backend.
