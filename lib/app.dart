@@ -7,12 +7,27 @@ class App extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Weenus',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blueGrey,
+          brightness: Brightness.dark,
+          surface: const Color(
+            0xFF1E1E1E,
+          ), // Slightly lighter than black for depth
+        ),
         useMaterial3: true,
+        scaffoldBackgroundColor: const Color(
+          0xFF121212,
+        ), // Deep dark background
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF1E1E1E),
+          elevation: 0,
+          centerTitle: false,
+        ),
       ),
-      home: const CounterPage(title: 'Flutter Demo Home Page'),
+      home: const CounterPage(title: 'Weenus Dashboard'),
     );
   }
 }

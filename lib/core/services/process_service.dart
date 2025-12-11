@@ -4,9 +4,18 @@ import 'package:path/path.dart' as p;
 
 class ProcessService {
   Process? _process;
-  final int port = 12345;
+  final int port = 3001;
 
   Future<void> spawnBackend() async {
+    const bool skipSpawn = bool.fromEnvironment('SKIP_GO_SPAWN');
+    if (skipSpawn) {
+      print(
+        '[ProcessService] Skipping internal backend spawn (SKIP_GO_SPAWN=true).',
+      );
+      print('[ProcessService] Expecting external W.E.N.I.S. on port $port');
+      return;
+    }
+
     if (_process != null) return;
 
     try {

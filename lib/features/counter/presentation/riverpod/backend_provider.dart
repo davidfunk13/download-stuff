@@ -7,18 +7,33 @@ import 'dart:convert';
 final processServiceProvider = Provider((ref) => ProcessService());
 
 // Provider to check backend health
+// Provider to check backend health (Refreshes on Hot Reload)
 final backendHealthProvider = FutureProvider.autoDispose<String>((ref) async {
-  // Wait a bit for startup
-  await Future.delayed(const Duration(seconds: 1));
+  // Wait a bit to ensure backend is ready if just spawned
+  await Future.delayed(const Duration(milliseconds: 500));
 
   try {
-    final response = await http.get(Uri.parse('http://localhost:12345/health'));
+    final response = await http.get(Uri.parse('http://localhost:3001/health'));
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       return data['message'] as String;
     }
     return 'Error: ${response.statusCode}';
   } catch (e) {
-    return 'Connection Failed: $e';
+    return 'Connection Failed: W.E.N.I.S. Offline';
+  }
+});
+
+// Provider for random message (on-demand)
+final randomMessageProvider = FutureProvider.autoDispose<String>((ref) async {
+  try {
+    final response = await http.get(Uri.parse('http://localhost:3001/random'));
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['message'] as String;
+    }
+    return 'Error: ${response.statusCode}';
+  } catch (e) {
+    return 'Failed to fetch random message';
   }
 });

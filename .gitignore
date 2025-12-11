@@ -38,7 +38,11 @@ go.work.sum
 dist/
 assets/bin/
 
+# Temp
+tmp/
+
 # AI Context
 gemini.md
 golang_standards.md
 flutter_standards.md
+ARCHITECTURE.md

@@ -1,7 +1,17 @@
-# Acheron Boilerplate
+# Weenus Boilerplate
 **Universal Media Downloader (White Box Implementation)**
 
-This repository contains the "Hello World" boilerplate for Project Acheron, featuring a Flutter Frontend and a "Silent Sidecar" Go Backend.
+This repository contains the "Hello World" boilerplate for Project Weenus, featuring a Flutter Frontend and a "Silent Sidecar" Go Backend.
+
+
+## Powered By
+```text
+__        __   _   _   ___   ____  
+\ \      / /__| \ | | |_ _| / ___| 
+ \ \ /\ / / _ \  \| |  | |  \___ \ 
+  \ V  V /  __/ |\  |  | |   ___) |
+   \_/\_/ \___|_| \_| |___| |____/ 
+```
 
 ## Architecture
 -   **Frontend**: Flutter (Feature-First, Riverpod).

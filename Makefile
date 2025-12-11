@@ -1,4 +1,4 @@
-# Acheron "Hello World" Boilerplate Makefile
+# Weenus "Hello World" Boilerplate Makefile
 
 .PHONY: setup dev build dist installer test-ui test-go test-ui-file test-go-file test-go-run help
 
@@ -7,20 +7,20 @@
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
-setup: ## Install dependencies (Flutter, Go)
+setup: ## Install dependencies (Flutter, Go, Air)
 	flutter pub get
 	cd engine && go mod tidy
+	@echo "Installing Air for Hot Reload..."
+	cd engine && go install github.com/air-verse/air@latest
 
 # --- Development ---
 
-dev: ## Run App in Dev Mode (Go Backend + Flutter Debug)
-	@echo "Starting Go Backend (Dev)..."
-	@# In a real scenario, use something like 'air' for hot reload. For now, background it.
-	@# We wait a sec to let it start before flutter.
-	@(trap 'kill 0' SIGINT; \
-	 go run engine/cmd/engine/main.go & \
-	 flutter run -d linux & \
-	 wait)
+dev: ## Run App in Dev Mode (Separate Terminal for W.E.N.I.S.)
+	@echo "Launching W.E.N.I.S. in separate terminal (Hot Reload Enabled)..."
+	@# Check if 'air' is available. If so, use it. Else, fallback to 'go run'.
+	gnome-terminal --title="W.E.N.I.S. Engine" --geometry=100x40 -- bash -c "export PATH=\$$PATH:\$$(go env GOPATH)/bin; cd engine && if command -v air > /dev/null; then air; else echo 'Air not found, falling back...'; go run cmd/engine/main.go; fi; echo 'Backend exited.'; read -p 'Press Enter to close...'"
+	@echo "Launching Flutter (SKIP_GO_SPAWN=true)..."
+	flutter run -d linux --dart-define=SKIP_GO_SPAWN=true
 
 # --- Build & Distribution ---
 
