@@ -20,6 +20,8 @@ build/
 .flutter-plugins-dependencies
 android/.gradle
 android/app/src/main/assets/
+android/key.properties
+android/local.properties
 ios/.symlinks
 ios/Pods/
 
@@ -31,3 +33,12 @@ ios/Pods/
 # Go workspace file
 go.work
 go.work.sum
+
+# Build Artifacts
+dist/
+assets/bin/
+
+# AI Context
+gemini.md
+golang_standards.md
+flutter_standards.md
