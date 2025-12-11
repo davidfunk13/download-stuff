@@ -3,43 +3,26 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"io"
-	"os"
 	"strings"
 	"testing"
 
 	"download_stuff_engine/internal/protocol"
 )
 
-// captureOutput captures stdout during a function execution
-func captureOutput(f func()) string {
-	old := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	f()
-
-	w.Close()
-	os.Stdout = old
-
-	var buf bytes.Buffer
-	io.Copy(&buf, r)
-	return buf.String()
-}
-
 func TestHealthCommand(t *testing.T) {
 	// Create a health command JSON
 	cmdJSON := `{"cmd": "health"}`
 
-	// Capture the output of handleCommand
-	output := captureOutput(func() {
-		handleCommand(cmdJSON)
-	})
+	// Create a buffer to capture output
+	var buf bytes.Buffer
+
+	// Call handleCommand with the buffer
+	handleCommand(cmdJSON, &buf)
 
 	// Parse the response
 	var resp protocol.Response
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &resp); err != nil {
-		t.Fatalf("Failed to parse response: %v, output was: %s", err, output)
+	if err := json.Unmarshal(buf.Bytes(), &resp); err != nil {
+		t.Fatalf("Failed to parse response: %v, output was: %s", err, buf.String())
 	}
 
 	// Verify status
@@ -61,15 +44,16 @@ func TestRandomCommand(t *testing.T) {
 	// Create a random command JSON
 	cmdJSON := `{"cmd": "random"}`
 
-	// Capture the output of handleCommand
-	output := captureOutput(func() {
-		handleCommand(cmdJSON)
-	})
+	// Create a buffer to capture output
+	var buf bytes.Buffer
+
+	// Call handleCommand with the buffer
+	handleCommand(cmdJSON, &buf)
 
 	// Parse the response
 	var resp protocol.Response
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &resp); err != nil {
-		t.Fatalf("Failed to parse response: %v, output was: %s", err, output)
+	if err := json.Unmarshal(buf.Bytes(), &resp); err != nil {
+		t.Fatalf("Failed to parse response: %v, output was: %s", err, buf.String())
 	}
 
 	// Verify status
@@ -91,15 +75,16 @@ func TestUnknownCommand(t *testing.T) {
 	// Create an unknown command JSON
 	cmdJSON := `{"cmd": "foobar"}`
 
-	// Capture the output of handleCommand
-	output := captureOutput(func() {
-		handleCommand(cmdJSON)
-	})
+	// Create a buffer to capture output
+	var buf bytes.Buffer
+
+	// Call handleCommand with the buffer
+	handleCommand(cmdJSON, &buf)
 
 	// Parse the response
 	var resp protocol.Response
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &resp); err != nil {
-		t.Fatalf("Failed to parse response: %v, output was: %s", err, output)
+	if err := json.Unmarshal(buf.Bytes(), &resp); err != nil {
+		t.Fatalf("Failed to parse response: %v, output was: %s", err, buf.String())
 	}
 
 	// Verify status is error
@@ -117,15 +102,16 @@ func TestInvalidJSON(t *testing.T) {
 	// Create invalid JSON
 	cmdJSON := `{not valid json}`
 
-	// Capture the output of handleCommand
-	output := captureOutput(func() {
-		handleCommand(cmdJSON)
-	})
+	// Create a buffer to capture output
+	var buf bytes.Buffer
+
+	// Call handleCommand with the buffer
+	handleCommand(cmdJSON, &buf)
 
 	// Parse the response
 	var resp protocol.Response
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &resp); err != nil {
-		t.Fatalf("Failed to parse response: %v, output was: %s", err, output)
+	if err := json.Unmarshal(buf.Bytes(), &resp); err != nil {
+		t.Fatalf("Failed to parse response: %v, output was: %s", err, buf.String())
 	}
 
 	// Verify status is error

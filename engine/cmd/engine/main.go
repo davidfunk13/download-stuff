@@ -3,7 +3,10 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"flag"
 	"fmt"
+	"io"
+	"net"
 	"os"
 	"strings"
 	"time"
@@ -22,67 +25,120 @@ __        __   _   _   ___   ____
    Web Extraction & Network Interface System v1.0.0
    ------------------------------------------------
    [+] Initializing W.E.N.I.S...
-   [+] Connection established.
 `
 }
 
+// Connection abstracts the communication channel (Stdio or Socket)
+type Connection interface {
+	io.Reader
+	io.Writer
+}
+
+// StdioConnection wraps Stdin/Stdout
+type StdioConnection struct{}
+
+func (s StdioConnection) Read(p []byte) (n int, err error) {
+	return os.Stdin.Read(p)
+}
+
+func (s StdioConnection) Write(p []byte) (n int, err error) {
+	return os.Stdout.Write(p)
+}
+
 func main() {
+	port := flag.Int("port", 0, "Port to listen on (0 for Stdin behavior)")
+	flag.Parse()
+
 	// 1. Print Banner to Stderr so it doesn't mess up the JSON stdout stream
 	fmt.Fprintln(os.Stderr, getBanner())
-	fmt.Fprintln(os.Stderr, "[W.E.N.I.S.] Engine Started. Listening on Stdin...")
 
-	scanner := bufio.NewScanner(os.Stdin)
+	if *port > 0 {
+		startSocketServer(*port)
+	} else {
+		startStdioServer()
+	}
+}
+
+func startStdioServer() {
+	fmt.Fprintln(os.Stderr, "[W.E.N.I.S.] Engine Started. Mode: PIPE (Stdin/Stdout)")
+	conn := StdioConnection{}
+	handleConnection(conn)
+}
+
+func startSocketServer(port int) {
+	addr := fmt.Sprintf("localhost:%d", port)
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error listening on %s: %v\n", addr, err)
+		os.Exit(1)
+	}
+	fmt.Fprintf(os.Stderr, "[W.E.N.I.S.] Engine Started. Mode: SOCKET (%s)\n", addr)
+
+	for {
+		conn, err := listener.Accept()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error accepting connection: %v\n", err)
+			continue
+		}
+		go handleConnection(conn)
+	}
+}
+
+func handleConnection(conn io.ReadWriter) {
+	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
 
-		handleCommand(line)
+		handleCommand(line, conn)
 	}
 
 	if err := scanner.Err(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading stdin: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error reading connection: %v\n", err)
 	}
 }
 
-func handleCommand(line string) {
+func handleCommand(line string, writer io.Writer) {
+	fmt.Fprintf(os.Stderr, "[Request] %s\n", line)
 	var cmd protocol.Command
 	if err := json.Unmarshal([]byte(line), &cmd); err != nil {
-		sendError("Invalid JSON format")
+		sendError(writer, "Invalid JSON format")
 		return
 	}
 
 	// Traffic Control Dispatcher
 	switch cmd.Cmd {
 	case "health":
-		sendResponse(protocol.Response{
+		sendResponse(writer, protocol.Response{
 			Status: "ok",
 			Data:   "W.E.N.I.S. is healthy and running",
 			Log:    "Health check received",
 		})
 	case "random":
-		sendResponse(protocol.Response{
+		sendResponse(writer, protocol.Response{
 			Status: "ok",
 			Data:   fmt.Sprintf("W.E.N.I.S. Random ID: %d", time.Now().UnixNano()),
 			Log:    "Random ID generated",
 		})
 	default:
-		sendError(fmt.Sprintf("Unknown command: %s", cmd.Cmd))
+		sendError(writer, fmt.Sprintf("Unknown command: %s", cmd.Cmd))
 	}
 }
 
-func sendResponse(resp protocol.Response) {
+func sendResponse(w io.Writer, resp protocol.Response) {
 	bytes, err := json.Marshal(resp)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error marshalling response: %v\n", err)
 		return
 	}
-	fmt.Println(string(bytes))
+	// Append newline as delimiter
+	w.Write(append(bytes, '\n'))
 }
 
-func sendError(msg string) {
-	sendResponse(protocol.Response{
+func sendError(w io.Writer, msg string) {
+	sendResponse(w, protocol.Response{
 		Status: "error",
 		Log:    msg,
 	})
