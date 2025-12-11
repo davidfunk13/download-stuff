@@ -1,0 +1,33 @@
+# System files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.log
+
+# Flutter
+.dart_tool/
+.packages
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+android/.gradle
+android/app/src/main/assets/
+ios/.symlinks
+ios/Pods/
+
+# Go
+# Binaries
+*.exe
+*.test
+*.out
+# Go workspace file
+go.work
+go.work.sum
