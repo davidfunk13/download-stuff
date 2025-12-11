@@ -19,15 +19,17 @@ void main() {
       ProviderScope(
         overrides: [
           backendHealthProvider.overrideWith(
-            (ref) => Future.value('Mocked W.E.N.I.S.'),
+            (ref) => Stream.value('Mocked W.E.N.I.S.'),
           ),
           randomMessageProvider.overrideWith(
-            (ref) => Future.value('Mocked Random Message'),
+            (ref) => Stream.value('Mocked Random Message'),
           ),
         ],
         child: const App(),
       ),
     );
+
+    await tester.pumpAndSettle();
 
     // Verify that our counter starts at 0.
     expect(find.text('0'), findsOneWidget);
@@ -50,11 +52,11 @@ void main() {
       ProviderScope(
         overrides: [
           backendHealthProvider.overrideWith(
-            (ref) => Future.value('Mocked W.E.N.I.S.'),
+            (ref) => Stream.value('Mocked W.E.N.I.S.'),
           ),
-          randomMessageProvider.overrideWith((ref) async {
+          randomMessageProvider.overrideWith((ref) {
             callCount++;
-            return 'Random Message $callCount';
+            return Stream.value('Random Message $callCount');
           }),
         ],
         child: const App(),

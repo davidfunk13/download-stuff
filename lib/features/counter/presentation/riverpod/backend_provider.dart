@@ -1,39 +1,65 @@
+import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/services/process_service.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import '../../../../services/wenis_service.dart';
 
-// Global provider for the process service
-final processServiceProvider = Provider((ref) => ProcessService());
+// Re-export the WenisService provider for convenience
+export '../../../../services/wenis_service.dart' show wenisServiceProvider;
 
-// Provider to check backend health
-// Provider to check backend health (Refreshes on Hot Reload)
-final backendHealthProvider = FutureProvider.autoDispose<String>((ref) async {
-  // Wait a bit to ensure backend is ready if just spawned
-  await Future.delayed(const Duration(milliseconds: 500));
-
-  try {
-    final response = await http.get(Uri.parse('http://localhost:3001/health'));
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return data['message'] as String;
-    }
-    return 'Error: ${response.statusCode}';
-  } catch (e) {
-    return 'Connection Failed: W.E.N.I.S. Offline';
+/// Provider that ensures the engine is started and returns the service.
+final engineStateProvider = FutureProvider<WenisService>((ref) async {
+  final service = ref.watch(wenisServiceProvider);
+  if (!service.isRunning) {
+    await service.start();
   }
+  return service;
 });
 
-// Provider for random message (on-demand)
-final randomMessageProvider = FutureProvider.autoDispose<String>((ref) async {
-  try {
-    final response = await http.get(Uri.parse('http://localhost:3001/random'));
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return data['message'] as String;
-    }
-    return 'Error: ${response.statusCode}';
-  } catch (e) {
-    return 'Failed to fetch random message';
-  }
+/// Provider for backend health status using the new JSON-RPC protocol.
+final backendHealthProvider = StreamProvider.autoDispose<String>((ref) async* {
+  final engineAsync = ref.watch(engineStateProvider);
+
+  yield* engineAsync.when(
+    data: (service) async* {
+      // Send health command
+      service.sendCommand('health');
+
+      // Listen for the response
+      await for (final response in service.responses) {
+        if (response['status'] == 'ok') {
+          yield response['data'] as String? ?? 'Unknown';
+          return;
+        } else if (response['status'] == 'error') {
+          yield 'Error: ${response['log']}';
+          return;
+        }
+      }
+    },
+    loading: () => Stream.value('Starting W.E.N.I.S. Engine...'),
+    error: (e, _) => Stream.value('Engine Start Failed: $e'),
+  );
+});
+
+/// Provider for random message (on-demand via refresh).
+final randomMessageProvider = StreamProvider.autoDispose<String>((ref) async* {
+  final engineAsync = ref.watch(engineStateProvider);
+
+  yield* engineAsync.when(
+    data: (service) async* {
+      // Send random command
+      service.sendCommand('random');
+
+      // Listen for the response
+      await for (final response in service.responses) {
+        if (response['status'] == 'ok') {
+          yield response['data'] as String? ?? 'Unknown';
+          return;
+        } else if (response['status'] == 'error') {
+          yield 'Error: ${response['log']}';
+          return;
+        }
+      }
+    },
+    loading: () => Stream.value('Waiting for engine...'),
+    error: (e, _) => Stream.value('Engine Error: $e'),
+  );
 });

@@ -1,59 +1,15 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
-	"log"
-	"net/http"
 	"os"
+	"strings"
 	"time"
+
+	"download_stuff_engine/internal/protocol"
 )
-
-type Response struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
-}
-
-func enableCors(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
-func healthHandler(w http.ResponseWriter, r *http.Request) {
-	resp := Response{
-		Status:  "ok",
-		Message: getBanner(),
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-	}
-}
-
-func randomHandler(w http.ResponseWriter, r *http.Request) {
-	resp := Response{
-		Status:  "ok",
-		Message: fmt.Sprintf("W.E.N.I.S. Random ID: %d", time.Now().UnixNano()),
-	}
-	// Log the message for visibility
-	fmt.Printf("[W.E.N.I.S.] Sending random message: %s\n", resp.Message)
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		http.Error(w, "Failed to encode response", http.StatusInternalServerError)
-	}
-}
 
 func getBanner() string {
 	return `
@@ -67,26 +23,67 @@ __        __   _   _   ___   ____
    ------------------------------------------------
    [+] Initializing W.E.N.I.S...
    [+] Connection established.
-
-   Hello from Wenis! This API/Application is Powered by Wenis™
 `
 }
 
 func main() {
-	fmt.Println(getBanner())
-	port := "3001"
-	if envPort := os.Getenv("PORT"); envPort != "" {
-		port = envPort
+	// 1. Print Banner to Stderr so it doesn't mess up the JSON stdout stream
+	fmt.Fprintln(os.Stderr, getBanner())
+	fmt.Fprintln(os.Stderr, "[W.E.N.I.S.] Engine Started. Listening on Stdin...")
+
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+
+		handleCommand(line)
 	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/health", healthHandler)
-	mux.HandleFunc("/random", randomHandler)
-
-	handler := enableCors(mux)
-
-	fmt.Printf("Wenis Engine 1.0 listening on port %s\n", port)
-	if err := http.ListenAndServe(":"+port, handler); err != nil {
-		log.Fatalf("Server failed to start: %v", err)
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading stdin: %v\n", err)
 	}
+}
+
+func handleCommand(line string) {
+	var cmd protocol.Command
+	if err := json.Unmarshal([]byte(line), &cmd); err != nil {
+		sendError("Invalid JSON format")
+		return
+	}
+
+	// Traffic Control Dispatcher
+	switch cmd.Cmd {
+	case "health":
+		sendResponse(protocol.Response{
+			Status: "ok",
+			Data:   "W.E.N.I.S. is healthy and running",
+			Log:    "Health check received",
+		})
+	case "random":
+		sendResponse(protocol.Response{
+			Status: "ok",
+			Data:   fmt.Sprintf("W.E.N.I.S. Random ID: %d", time.Now().UnixNano()),
+			Log:    "Random ID generated",
+		})
+	default:
+		sendError(fmt.Sprintf("Unknown command: %s", cmd.Cmd))
+	}
+}
+
+func sendResponse(resp protocol.Response) {
+	bytes, err := json.Marshal(resp)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error marshalling response: %v\n", err)
+		return
+	}
+	fmt.Println(string(bytes))
+}
+
+func sendError(msg string) {
+	sendResponse(protocol.Response{
+		Status: "error",
+		Log:    msg,
+	})
 }
