@@ -19,6 +19,12 @@ class WenisService {
   final _responseController =
       StreamController<Map<String, dynamic>>.broadcast();
 
+  /// Auto-incrementing request ID for correlation
+  int _requestIdCounter = 0;
+
+  /// Pending requests awaiting responses, keyed by request ID
+  final Map<String, Completer<Map<String, dynamic>>> _pendingRequests = {};
+
   /// Stream of responses from the Go Engine.
   Stream<Map<String, dynamic>> get responses => _responseController.stream;
 
@@ -99,13 +105,45 @@ class WenisService {
     if (line.trim().isEmpty) return;
     try {
       final json = jsonDecode(line) as Map<String, dynamic>;
+
+      // Check if this response has an ID that matches a pending request
+      final id = json['id'] as String?;
+      if (id != null && _pendingRequests.containsKey(id)) {
+        _pendingRequests[id]!.complete(json);
+        _pendingRequests.remove(id);
+      }
+
+      // Also broadcast to the stream for subscribers (e.g., progress updates)
       _responseController.add(json);
     } catch (e) {
       stderr.writeln('[WenisService] Non-JSON output: $line');
     }
   }
 
-  /// Sends a command to the Go Engine.
+  /// Sends a command and returns a Future that completes with the response.
+  /// Use this for request-response patterns (e.g., extract, health check).
+  Future<Map<String, dynamic>> sendRequest(
+    String cmd, {
+    String? url,
+    String? quality,
+  }) {
+    final id = (_requestIdCounter++).toString();
+    final completer = Completer<Map<String, dynamic>>();
+    _pendingRequests[id] = completer;
+
+    final command = <String, dynamic>{
+      'id': id,
+      'cmd': cmd,
+      if (url != null) 'url': url,
+      if (quality != null) 'quality': quality,
+    };
+
+    _writeCommand(command);
+    return completer.future;
+  }
+
+  /// Sends a command without waiting for a response (fire-and-forget).
+  /// Use this for commands where you listen to the response stream instead.
   void sendCommand(String cmd, {String? url, String? quality}) {
     print('[WenisService] Sending Command: $cmd');
     if (!isRunning) {
@@ -118,6 +156,14 @@ class WenisService {
       if (quality != null) 'quality': quality,
     };
 
+    _writeCommand(command);
+  }
+
+  void _writeCommand(Map<String, dynamic> command) {
+    if (!isRunning) {
+      throw StateError('Engine not running. Call start() first.');
+    }
+
     final jsonString = '${jsonEncode(command)}\n';
 
     if (_socket != null) {
@@ -127,12 +173,27 @@ class WenisService {
     }
   }
 
+  /// Requests graceful shutdown of the Go engine.
+  Future<void> shutdown() async {
+    if (!isRunning) return;
+    try {
+      await sendRequest('shutdown');
+    } catch (_) {
+      // Engine may exit before responding
+    }
+  }
+
   /// Stops the Go Engine connection.
   Future<void> stop() async {
     _socket?.destroy();
     _socket = null;
     _process?.kill();
     _process = null;
+    // Complete any pending requests with an error
+    for (final completer in _pendingRequests.values) {
+      completer.completeError(StateError('Engine stopped'));
+    }
+    _pendingRequests.clear();
   }
 
   void dispose() {

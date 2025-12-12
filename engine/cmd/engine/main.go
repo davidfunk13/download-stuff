@@ -104,7 +104,7 @@ func handleCommand(line string, writer io.Writer) {
 	fmt.Fprintf(os.Stderr, "[Request] %s\n", line)
 	var cmd protocol.Command
 	if err := json.Unmarshal([]byte(line), &cmd); err != nil {
-		sendError(writer, "Invalid JSON format")
+		sendError(writer, "", "Invalid JSON format")
 		return
 	}
 
@@ -112,18 +112,28 @@ func handleCommand(line string, writer io.Writer) {
 	switch cmd.Cmd {
 	case "health":
 		sendResponse(writer, protocol.Response{
+			ID:     cmd.ID,
 			Status: "ok",
 			Data:   "W.E.N.I.S. is healthy and running",
 			Log:    "Health check received",
 		})
 	case "random":
 		sendResponse(writer, protocol.Response{
+			ID:     cmd.ID,
 			Status: "ok",
 			Data:   fmt.Sprintf("W.E.N.I.S. Random ID: %d", time.Now().UnixNano()),
 			Log:    "Random ID generated",
 		})
+	case "shutdown":
+		sendResponse(writer, protocol.Response{
+			ID:     cmd.ID,
+			Status: "ok",
+			Log:    "Shutting down gracefully",
+		})
+		fmt.Fprintln(os.Stderr, "[W.E.N.I.S.] Shutdown requested. Goodbye!")
+		os.Exit(0)
 	default:
-		sendError(writer, fmt.Sprintf("Unknown command: %s", cmd.Cmd))
+		sendError(writer, cmd.ID, fmt.Sprintf("Unknown command: %s", cmd.Cmd))
 	}
 }
 
@@ -137,8 +147,9 @@ func sendResponse(w io.Writer, resp protocol.Response) {
 	w.Write(append(bytes, '\n'))
 }
 
-func sendError(w io.Writer, msg string) {
+func sendError(w io.Writer, id string, msg string) {
 	sendResponse(w, protocol.Response{
+		ID:     id,
 		Status: "error",
 		Log:    msg,
 	})
