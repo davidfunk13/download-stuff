@@ -11,8 +11,11 @@ import (
 	"strings"
 	"time"
 
+	"download_stuff_engine/internal/middleware"
 	"download_stuff_engine/internal/protocol"
 )
+
+var devMode bool
 
 func getBanner() string {
 	return `
@@ -47,6 +50,7 @@ func (s StdioConnection) Write(p []byte) (n int, err error) {
 
 func main() {
 	port := flag.Int("port", 0, "Port to listen on (0 for Stdin behavior)")
+	flag.BoolVar(&devMode, "dev", false, "Enable development mode with request logging")
 	flag.Parse()
 
 	// 1. Print Banner to Stderr so it doesn't mess up the JSON stdout stream
@@ -85,6 +89,9 @@ func startSocketServer(port int) {
 }
 
 func handleConnection(conn io.ReadWriter) {
+	// Create the dev logger middleware (wraps handleCommand)
+	loggedHandler := middleware.DevLogger(handleCommand)
+
 	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -92,7 +99,11 @@ func handleConnection(conn io.ReadWriter) {
 			continue
 		}
 
-		handleCommand(line, conn)
+		if devMode {
+			loggedHandler(line, conn)
+		} else {
+			processRequest(line, conn)
+		}
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -100,14 +111,17 @@ func handleConnection(conn io.ReadWriter) {
 	}
 }
 
-func handleCommand(line string, writer io.Writer) {
-	fmt.Fprintf(os.Stderr, "[Request] %s\n", line)
+// processRequest handles a single request line (used in non-dev mode)
+func processRequest(line string, writer io.Writer) {
 	var cmd protocol.Command
 	if err := json.Unmarshal([]byte(line), &cmd); err != nil {
 		sendError(writer, "", "Invalid JSON format")
 		return
 	}
+	handleCommand(cmd, writer)
+}
 
+func handleCommand(cmd protocol.Command, writer io.Writer) {
 	// Traffic Control Dispatcher
 	switch cmd.Cmd {
 	case "health":

@@ -17,7 +17,7 @@ func TestHealthCommand(t *testing.T) {
 	var buf bytes.Buffer
 
 	// Call handleCommand with the buffer
-	handleCommand(cmdJSON, &buf)
+	processRequest(cmdJSON, &buf)
 
 	// Parse the response
 	var resp protocol.Response
@@ -47,8 +47,8 @@ func TestRandomCommand(t *testing.T) {
 	// Create a buffer to capture output
 	var buf bytes.Buffer
 
-	// Call handleCommand with the buffer
-	handleCommand(cmdJSON, &buf)
+	// Call processRequest with the buffer
+	processRequest(cmdJSON, &buf)
 
 	// Parse the response
 	var resp protocol.Response
@@ -78,8 +78,8 @@ func TestUnknownCommand(t *testing.T) {
 	// Create a buffer to capture output
 	var buf bytes.Buffer
 
-	// Call handleCommand with the buffer
-	handleCommand(cmdJSON, &buf)
+	// Call processRequest with the buffer
+	processRequest(cmdJSON, &buf)
 
 	// Parse the response
 	var resp protocol.Response
@@ -105,8 +105,8 @@ func TestInvalidJSON(t *testing.T) {
 	// Create a buffer to capture output
 	var buf bytes.Buffer
 
-	// Call handleCommand with the buffer
-	handleCommand(cmdJSON, &buf)
+	// Call processRequest with the buffer
+	processRequest(cmdJSON, &buf)
 
 	// Parse the response
 	var resp protocol.Response

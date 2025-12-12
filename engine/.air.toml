@@ -3,7 +3,7 @@ tmp_dir = "tmp"
 
 [build]
   cmd = "go build -o ./tmp/main ./cmd/engine/main.go"
-  full_bin = "./tmp/main -port 2024"
+  full_bin = "./tmp/main -port 2024 --dev"
   delay = 1000
   exclude_dir = ["assets", "tmp", "vendor", "test"]
   include_ext = ["go", "tpl", "tmpl", "html"]
